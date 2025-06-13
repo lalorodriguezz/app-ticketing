@@ -74,6 +74,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
+    borderTopLeftRadius: 30, // Orillas redondeadas
+    borderTopRightRadius: 30, // Orillas redondeadas
+    marginTop: -30, // Asegura un efecto continuo entre ambas secciones
   },
   title: { fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 30 },
   googleButton: {
