@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,232 +7,304 @@ import {
   Dimensions,
   FlatList,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
+import QRCode from "react-native-qrcode-svg";
+import "react-native-get-random-values"; // Compatibilidad con crypto.getRandomValues
+import { v4 as uuidv4 } from "uuid";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
-const attendanceData = [
+// === Tipos e Interfaces ===
+interface ClassData {
+  id: string;
+  subject: string;
+  teacher: string;
+}
+
+// === Datos de ejemplo ===
+const classData: ClassData[] = [
   {
-    date: "22/05/2025",
-    time: "08:00 am",
+    id: "1",
     subject: "Gestión de redes",
     teacher: "Ing. Uriel Martinez",
-    status: "Presente",
   },
   {
-    date: "22/05/2025",
-    time: "10:50 am",
+    id: "2",
     subject: "Emprendimiento e innovación",
     teacher: "Prof. Yorlenne",
-    status: "Presente",
   },
   {
-    date: "22/05/2025",
-    time: "12:50 pm",
+    id: "3",
     subject: "Auditoría de Sistemas",
     teacher: "Ing. Frijolito",
-    status: "Ausente",
   },
 ];
 
+// === Tema de estilos ===
+const theme = {
+  colors: {
+    primary: "#49A1DB",
+    background: "#FFFFFF",
+    cardBg: "#F9F9F9",
+    text: "#333333",
+    muted: "#888888",
+  },
+  spacing: {
+    s: 8,
+    m: 15,
+    l: 20,
+    xl: 30,
+  },
+  radii: {
+    s: 6,
+    m: 10,
+    l: 20,
+  },
+};
+
+// === Componentes ===
+const Header: React.FC = () => (
+  <View style={styles.header}>
+    <Text style={styles.headerTitle}>Asistencia</Text>
+  </View>
+);
+
+const ClassDetail: React.FC<{
+  item: ClassData;
+  onBack: () => void;
+}> = ({ item, onBack }) => {
+  const [qr, setQr] = useState<string>("");
+
+  const generateQr = useCallback(() => {
+    const uniqueCode = uuidv4(); // Genera UUID compatible con Hermes
+    setQr(uniqueCode);
+  }, []);
+
+  return (
+    <View style={styles.detailContainer}>
+      <View style={styles.classHeader}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <Text style={styles.backTxt}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.headerTextContainer}>
+          <Text style={styles.headerSubject} numberOfLines={1}>
+            {item.subject}
+          </Text>
+          <Text style={styles.headerTeacher} numberOfLines={1}>
+            {item.teacher}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.qrSection}>
+        {qr ? (
+          <>
+            <Text style={styles.qrTitle}>Código QR para asistencia</Text>
+            <View style={styles.qrContainer}>
+              <QRCode value={qr} size={200} />
+            </View>
+            <Text style={styles.qrHint}>
+              Escanea este código para registrar tu asistencia
+            </Text>
+          </>
+        ) : (
+          <TouchableOpacity style={styles.qrButton} onPress={generateQr}>
+            <Text style={styles.qrButtonText}>Generar QR de Asistencia</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+};
+
+const ClassCard: React.FC<{
+  item: ClassData;
+  onSelect: (id: string) => void;
+}> = ({ item, onSelect }) => (
+  <TouchableOpacity
+    style={styles.card}
+    onPress={() => onSelect(item.id)}
+    activeOpacity={0.8}
+  >
+    <View style={styles.cardContent}>
+      <Text style={styles.cardSubject}>{item.subject}</Text>
+      <Text style={styles.cardTeacher}>{item.teacher}</Text>
+    </View>
+  </TouchableOpacity>
+);
+
+// === App Principal ===
 export default function App() {
-  const [menuVisible, setMenuVisible] = useState(false);
   const [selectedTrimester, setSelectedTrimester] = useState("1");
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+
+  const handleSelect = useCallback((id: string) => {
+    setSelectedClassId(id);
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setSelectedClassId(null);
+  }, []);
+
+  const selectedClass = classData.find((c) => c.id === selectedClassId);
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => setMenuVisible(true)}>
-          <Ionicons name="menu" size={28} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mis asistencias</Text>
-        <TouchableOpacity style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Cerrar Sesión</Text>
-        </TouchableOpacity>
-      </View>
+      <Header />
 
-      {/* Sidebar Menu */}
-      {menuVisible && (
-        <View style={styles.sidebar}>
-          <TouchableOpacity
-            style={styles.closeMenu}
-            onPress={() => setMenuVisible(false)}
-          >
-            <Ionicons name="close" size={28} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.menuItem}>Mis asistencias</Text>
-          <Text style={styles.menuItem}>Mis tickets</Text>
+      {selectedClass ? (
+        <ClassDetail item={selectedClass} onBack={handleBack} />
+      ) : (
+        <View style={styles.content}>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={selectedTrimester}
+              onValueChange={setSelectedTrimester}
+              style={styles.picker}
+            >
+              {["1", "2", "3", "4"].map((t) => (
+                <Picker.Item key={t} label={`Trimestre ${t}`} value={t} />
+              ))}
+            </Picker>
+          </View>
+
+          <FlatList
+            data={classData}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <ClassCard item={item} onSelect={handleSelect} />
+            )}
+            contentContainerStyle={styles.listContent}
+          />
         </View>
       )}
-
-      {/* Main Content */}
-      <View style={styles.content}>
-        <Text style={styles.sectionTitle}>Asistencias</Text>
-
-        {/* Trimester Picker */}
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={selectedTrimester}
-            onValueChange={(itemValue) => setSelectedTrimester(itemValue)}
-            style={styles.picker}
-          >
-            <Picker.Item label="Trimestre 1" value="1" />
-            <Picker.Item label="Trimestre 2" value="2" />
-            <Picker.Item label="Trimestre 3" value="3" />
-            <Picker.Item label="Trimestre 4" value="4" />
-          </Picker>
-        </View>
-
-        {/* Attendance Cards */}
-        <FlatList
-          data={attendanceData}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={styles.cardLeft}>
-                <Text style={styles.cardDate}>{item.date}</Text>
-                <Text style={styles.cardTime}>{item.time}</Text>
-              </View>
-              <View style={styles.cardRight}>
-                <Text style={styles.cardSubject}>{item.subject}</Text>
-                <Text style={styles.cardTeacher}>{item.teacher}</Text>
-                <Text
-                  style={[
-                    styles.status,
-                    { color: item.status === "Presente" ? "green" : "red" },
-                  ]}
-                >
-                  {item.status}
-                </Text>
-              </View>
-            </View>
-          )}
-        />
-        <TouchableOpacity style={styles.qrButton}>
-          <Ionicons name="qr-code" size={28} color="white" />
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
 
+// === Estilos ===
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: theme.colors.background,
   },
   header: {
-    height: 60,
-    backgroundColor: "#49A1DB",
-    flexDirection: "row",
+    backgroundColor: theme.colors.primary,
+    padding: theme.spacing.l,
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 15,
+    justifyContent: "center",
   },
   headerTitle: {
     color: "white",
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "bold",
-  },
-  logoutButton: {
-    backgroundColor: "#2ecc71",
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 5,
-  },
-  logoutText: {
-    color: "white",
-    fontSize: 12,
-  },
-  sidebar: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    height: height,
-    width: 200,
-    backgroundColor: "#2980b9",
-    paddingTop: 60,
-    zIndex: 10,
-  },
-  closeMenu: {
-    position: "absolute",
-    top: 15,
-    right: 15,
-  },
-  menuItem: {
-    color: "white",
-    fontSize: 16,
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#3498db",
+    marginTop: theme.spacing.s,
   },
   content: {
     flex: 1,
-    padding: 15,
-    marginTop: 10,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
+    padding: theme.spacing.m,
   },
   pickerContainer: {
-    marginBottom: 10,
-    backgroundColor: "white",
-    borderRadius: 8,
-    padding: 5,
-    elevation: 10,
+    backgroundColor: "#f0f0f0",
+    borderRadius: theme.radii.m,
+    marginBottom: theme.spacing.l,
+    overflow: "hidden",
   },
   picker: {
     height: 50,
-    width: "100%",
+  },
+  listContent: {
+    paddingBottom: theme.spacing.l,
   },
   card: {
-    flexDirection: "row",
-    backgroundColor: "white",
-    padding: 15,
-    marginBottom: 10,
-    borderRadius: 8,
+    backgroundColor: theme.colors.cardBg,
+    borderRadius: theme.radii.m,
+    padding: theme.spacing.m,
+    marginVertical: theme.spacing.s,
     elevation: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.primary,
   },
-  cardLeft: {
+  cardContent: {
     flex: 1,
-    justifyContent: "center",
-  },
-  cardRight: {
-    flex: 2,
-    justifyContent: "center",
-  },
-  cardDate: {
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  cardTime: {
-    fontSize: 12,
-    color: "#7f8c8d",
   },
   cardSubject: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
+    color: theme.colors.text,
+    marginBottom: 4,
   },
   cardTeacher: {
-    fontSize: 14,
-    color: "#34495e",
+    fontSize: 15,
+    color: theme.colors.muted,
   },
-  status: {
-    marginTop: 5,
+  detailContainer: {
+    flex: 1,
+    backgroundColor: "#e8f4fa",
+  },
+  classHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: theme.colors.primary,
+    padding: theme.spacing.m,
+  },
+  backButton: {
+    marginRight: theme.spacing.s,
+  },
+  backTxt: {
+    fontSize: 28,
+    color: "white",
     fontWeight: "bold",
   },
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: theme.spacing.s,
+  },
+  headerSubject: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "white",
+  },
+  headerTeacher: {
+    fontSize: 16,
+    color: "white",
+    opacity: 0.9,
+  },
+  qrSection: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: theme.spacing.l,
+  },
+  qrTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: theme.spacing.m,
+    textAlign: "center",
+    color: theme.colors.text,
+  },
+  qrContainer: {
+    backgroundColor: "white",
+    padding: theme.spacing.m,
+    borderRadius: theme.radii.m,
+    elevation: 5,
+  },
+  qrHint: {
+    marginTop: theme.spacing.m,
+    color: theme.colors.muted,
+    textAlign: "center",
+    maxWidth: "80%",
+  },
   qrButton: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    backgroundColor: "#49A1DB",
-    borderRadius: 30,
-    padding: 15,
-    elevation: 4,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.m,
+    paddingHorizontal: theme.spacing.l,
+    borderRadius: theme.radii.m,
+    alignSelf: "center",
+  },
+  qrButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
