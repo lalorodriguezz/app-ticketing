@@ -8,6 +8,7 @@ import {
   Dimensions,
   Alert,
 } from "react-native";
+import { Picker } from "@react-native-picker/picker";
 import type { StackNavigationProp } from "@react-navigation/stack";
 
 type RootStackParamList = {
@@ -28,13 +29,17 @@ export default function Registro({
   const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
   const [carne, setCarne] = useState("");
+  const [perfil, setPerfil] = useState("Estudiante");
 
   const handleRegistro = () => {
     if (!correo.endsWith("@uml.edu.ni")) {
       Alert.alert("Correo inválido", "El correo debe terminar en @uml.edu.ni");
       return;
     }
-    Alert.alert("Registro exitoso", "Datos enviados correctamente");
+    Alert.alert(
+      "Registro exitoso",
+      `Datos enviados correctamente\nPerfil: ${perfil}`
+    );
   };
 
   return (
@@ -57,6 +62,20 @@ export default function Registro({
           value={nombre}
           onChangeText={setNombre}
         />
+      </View>
+
+      {/* Campo: Selección de perfil */}
+      <View style={styles.fieldGroup}>
+        <Text style={styles.label}>Perfil</Text>
+        <View style={styles.input}>
+          <Picker
+            selectedValue={perfil}
+            onValueChange={(itemValue) => setPerfil(itemValue)}
+          >
+            <Picker.Item label="Estudiante" value="Estudiante" />
+            <Picker.Item label="Docente" value="Docente" />
+          </Picker>
+        </View>
       </View>
 
       {/* Campo: Correo institucional */}
@@ -132,17 +151,17 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: "#fff",
-    borderColor: "#ccc",
+    borderColor: "#007AFF",
     borderWidth: 1,
-    borderRadius: 4,
-    paddingHorizontal: 15,
+    borderRadius: 24,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     fontSize: 16,
   },
   registerButton: {
     backgroundColor: "#28A745",
     paddingVertical: 14,
-    borderRadius: 4,
+    borderRadius: 24,
     alignItems: "center",
     marginTop: 10,
   },
